@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Renk Testi" />
+<title>Renk Körlüğü Testi</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<style>
+  :root{
+    --bg:#0b1020; --card:#141a2e; --accent:#4f8cff; --accent2:#22d3a8;
+    --err:#ff5b6e; --txt:#e8ecf8; --muted:#8892b0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    overflow:hidden;
+    touch-action:manipulation;
+    overscroll-behavior:none;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  }
+  #app{
+    height:100dvh;height:100vh;
+    display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right)
+            env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .screen{display:none;flex:1;flex-direction:column;padding:16px;overflow-y:auto;min-height:0;}
+  .screen.active{display:flex;}
+  h1{font-size:1.5rem;margin:6px 0;text-align:center;}
+  h2{font-size:1rem;margin:4px 0 12px;text-align:center;color:var(--muted);font-weight:500;}
+  p{line-height:1.5;color:var(--muted);margin:8px 0;}
+  .center{text-align:center;}
+  button{
+    font-family:inherit;font-size:1rem;font-weight:600;
+    border:none;border-radius:14px;padding:15px 22px;
+    background:var(--accent);color:#fff;cursor:pointer;
+    touch-action:manipulation;
+  }
+  button:active{opacity:.85;}
+  button:disabled{opacity:.45;}
+  button.ghost{background:transparent;border:1.5px solid var(--accent);color:var(--accent);}
+  input{
+    font-family:inherit;font-size:1.4rem;text-align:center;
+    padding:14px;border-radius:12px;border:1.5px solid #2a3450;
+    background:#0f1526;color:var(--txt);width:130px;letter-spacing:4px;
+  }
+  input:focus{outline:none;border-color:var(--accent);}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;
+    padding:8px 4px;font-size:.82rem;color:var(--muted);}
+  .progress-wrap{flex:1;height:6px;background:#1f2742;border-radius:3px;margin:0 12px;overflow:hidden;}
+  .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    border-radius:3px;transition:width .35s ease;}
+
+  .plate-wrap{flex:1;display:flex;align-items:center;justify-content:center;
+    min-height:0;position:relative;padding:8px 0;}
+  #plate{
+    display:block;
+    width:min(78vw,60vh,420px);
+    height:min(78vw,60vh,420px);
+    border-radius:50%;
+    box-shadow:0 12px 40px rgba(0,0,0,.6);
+    touch-action:none;cursor:pointer;background:#000;
+  }
+  .tap-hint{text-align:center;color:var(--muted);font-size:.9rem;margin:6px 0 12px;}
+  .input-row{display:flex;gap:10px;justify-content:center;align-items:center;padding:6px 0 14px;}
+
+  .result-card{background:var(--card);border-radius:18px;padding:18px;margin-bottom:12px;}
+  .metric{margin:12px 0;}
+  .metric-head{display:flex;justify-content:space-between;font-size:.88rem;margin-bottom:6px;}
+  .metric-bar{height:10px;background:#1f2742;border-radius:5px;overflow:hidden;}
+  .metric-fill{height:100%;width:0%;border-radius:5px;transition:width .8s ease;}
+  .fill-ok{background:linear-gradient(90deg,#22d3a8,#4f8cff);}
+  .fill-warn{background:linear-gradient(90deg,#ffb020,#ff7a45);}
+  .fill-bad{background:linear-gradient(90deg,#ff5b6e,#ff2d55);}
+  .verdict{text-align:center;padding:14px;border-radius:14px;font-weight:700;margin-top:6px;}
+  .verdict.ok{background:rgba(34,211,168,.14);color:#22d3a8;border:1px solid rgba(34,211,168,.4);}
+  .verdict.bad{background:rgba(255,91,110,.14);color:#ff5b6e;border:1px solid rgba(255,91,110,.4);}
+  .verdict.warn{background:rgba(255,176,32,.14);color:#ffb020;border:1px solid rgba(255,176,32,.4);}
+
+  #flash{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;z-index:999;}
+  #flash.ok{background:radial-gradient(circle,rgba(34,211,168,.25),transparent 70%);}
+  #flash.bad{background:radial-gradient(circle,rgba(255,91,110,.3),transparent 70%);}
+  #flash.show{opacity:1;}
+  .spacer{flex:1;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START -->
+  <section id="screen-start" class="screen active">
+    <div class="spacer"></div>
+    <div class="center">
+      <div style="font-size:3rem;">🎨</div>
+      <h1>Renk Körlüğü Testi</h1>
+      <h2>10 aşamalı · dinamik plakalar</h2>
+    </div>
+    <div class="result-card">
+      <p><b>Nasıl çalışır?</b></p>
+      <p>• 5 aşamada plaka içindeki <b>farklı renkli alana dokunun</b>.<br/>
+         • 5 aşamada plaka içindeki <b>gizli sayıyı</b> yazın.<br/>
+         • Her plaka anlık üretilir, ezberlenemez.</p>
+      <p style="font-size:.8rem;">⚠️ Tıbbi teşhis aracı değildir.</p>
+    </div>
+    <button id="btnStart" style="width:100%;">Teste Başla</button>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- TEST -->
+  <section id="screen-test" class="screen">
+    <div class="topbar">
+      <span id="stageLabel">1 / 10</span>
+      <div class="progress-wrap"><div id="progressBar" class="progress-bar"></div></div>
+      <span id="typeLabel">—</span>
+    </div>
+    <div class="plate-wrap">
+      <canvas id="plate"></canvas>
+    </div>
+    <div id="tapPanel">
+      <div class="tap-hint" id="tapHint">Farklı renkteki alana dokunun</div>
+    </div>
+    <div id="numPanel" class="hidden">
+      <div class="tap-hint">Plakadaki sayıyı girin (1–99)</div>
+      <div class="input-row">
+        <input id="numInput" type="number" min="1" max="99" inputmode="numeric" pattern="[0-9]*" />
+        <button id="btnSubmitNum">Onayla</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="screen-result" class="screen">
+    <h1 style="margin-top:12px;">Sonuç</h1>
+    <h2 id="resultSummary">—</h2>
+    <div id="resultBody"></div>
+    <button id="btnRestart" class="ghost" style="margin:6px 0 20px;">Testi Yeniden Başlat</button>
+  </section>
+
+</div>
+<div id="flash"></div>
+
+<script>
+"use strict";
+
+/* ---------- sabitler ---------- */
+const TEST_LENGTH = 10;
+const NUM_STAGES  = 5;
+const TAP_STAGES  = 5;
+
+const PALETTES = {
+  redGreen: {
+    label:"Kırmızı-Yeşil",
+    plateBg:["#c8a06a","#d4b07a","#b89060","#c99c66"],
+    dotsA:["#8a6b3a","#7a5c2e","#6f5428","#846635"],
+    dotsB:["#e0a04a","#e8b35c","#d99445","#eab75f"],
+    contrastB:["#a03020","#b04030","#8a2818","#c04030"]
+  },
+  blueYellow: {
+    label:"Mavi-Sarı",
+    plateBg:["#b9b9c8","#c4c4d2","#a9a9bb","#bdbdcc"],
+    dotsA:["#8a8aa0","#7c7c92","#9696ac","#82829a"],
+    dotsB:["#7fb0c8","#8fc0d8","#6fa0bc","#9acde2"],
+    contrastB:["#d0a020","#e0b030","#c09010","#e8bc40"]
+  },
+  mono: {
+    label:"Tam Renk",
+    plateBg:["#b0b0b0","#bcbcbc","#a4a4a4","#c4c4c4"],
+    dotsA:["#8c8c8c","#808080","#989898","#747474"],
+    dotsB:["#d0d0d0","#dcdcdc","#c8c8c8","#e4e4e4"],
+    contrastB:["#3a3a3a","#2a2a2a","#4a4a4a","#1f1f1f"]
+  },
+  normal: {
+    label:"Karışık",
+    plateBg:["#cdb18a","#d8bd97","#c1a37c","#dcc29e"],
+    dotsA:["#8a6b3a","#7a5c2e","#6f5428","#846635"],
+    dotsB:["#4f8cff","#22d3a8","#e0a04a","#e8b35c"],
+    contrastB:["#ff2d55","#22d3a8","#ffb020","#4f8cff"]
+  }
+};
+
+/* ---------- yardımcılar ---------- */
+const $ = id => document.getElementById(id);
+const rand = (a,b) => a + Math.random()*(b-a);
+const randInt = (a,b) => Math.floor(rand(a,b+1));
+const choice = a => a[randInt(0,a.length-1)];
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=randInt(0,i);[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+/* ---------- durum ---------- */
+const state = { stages:[], index:0, current:null, results:[] };
+const canvas = $("plate");
+const ctx = canvas.getContext("2d");
+let plateState = null;
+let figureMaskFn = null;
+
+/* ---------- ekran yönetimi ---------- */
+const screens = {
+  start:  $("screen-start"),
+  test:   $("screen-test"),
+  result: $("screen-result")
+};
+function showScreen(name){
+  Object.values(screens).forEach(s => s.classList.remove("active"));
+  screens[name].classList.add("active");
+}
+
+/* ---------- canvas boyutu ---------- */
+function fitCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  const size = Math.max(1, Math.round(Math.min(rect.width, rect.height)));
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const px = Math.round(size * dpr);
+  if (canvas.width !== px || canvas.height !== px){
+    canvas.width = px;
+    canvas.height = px;
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return size;
+}
+
+/* ---------- figür maskesi (sayı) ---------- */
+function buildFigureMask(answer, S){
+  const text = String(answer);
+  const off = document.createElement("canvas");
+  off.width = off.height = S;
+  const o = off.getContext("2d");
+  o.fillStyle = "#000";
+  o.fillRect(0,0,S,S);
+  o.fillStyle = "#fff";
+  o.textAlign = "center";
+  o.textBaseline = "middle";
+  const fs = Math.floor(S * (text.length > 1 ? 0.36 : 0.46));
+  o.font = "900 " + fs + "px -apple-system, Arial, sans-serif";
+  o.save();
+  o.translate(S/2, S/2);
+  o.rotate(rand(-0.15, 0.15));
+  o.fillText(text, 0, 0);
+  o.restore();
+  const data = o.getImageData(0,0,S,S).data;
+  return (px, py) => {
+    if (px < 0 || py < 0 || px >= S || py >= S) return false;
+    return data[(py*S + px)*4] > 128;
+  };
+}
+
+/* ---------- plaka çizimi ---------- */
+function drawPlate(){
+  if (!plateState) return;
+  const S = fitCanvas();
+  const cx = S/2, cy = S/2, R = S/2 - 1;
+  const pal = PALETTES[plateState.paletteKey];
+
+  ctx.clearRect(0,0,S,S);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.closePath();
+  ctx.clip();
+
+  ctx.fillStyle = choice(pal.plateBg);
+  ctx.fillRect(0,0,S,S);
+
+  const dotCount = Math.floor(R*R*0.028);
+  const maxR = Math.max(2.5, S*0.011);
+  const dots = [];
+  for (let i=0;i<dotCount;i++){
+    const ang = rand(0,Math.PI*2);
+    const rad = Math.sqrt(Math.random()) * (R-2);
+    dots.push({
+      x: cx + Math.cos(ang)*rad,
+      y: cy + Math.sin(ang)*rad,
+      r: rand(maxR*0.4, maxR)
+    });
+  }
+
+  const tapTarget = plateState.type === "tap" ? plateState.targetDot : null;
+  const tapHit = (x,y) => {
+    if (!tapTarget) return false;
+    return Math.hypot(x - cx - tapTarget.x, y - cy - tapTarget.y) <= tapTarget.r;
+  };
+
+  for (const d of dots){
+    if (plateState.type === "num" && figureMaskFn){
+      if (figureMaskFn(Math.round(d.x), Math.round(d.y))) continue;
+    }
+    if (tapHit(d.x, d.y)) continue;
+    ctx.beginPath();
+    ctx.fillStyle = choice(pal.dotsA);
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  if (plateState.type === "num" && figureMaskFn){
+    for (const d of dots){
+      if (!figureMaskFn(Math.round(d.x), Math.round(d.y))) continue;
+      ctx.beginPath();
+      ctx.fillStyle = choice(pal.dotsB);
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+  } else if (tapTarget){
+    const tCount = Math.max(30, Math.floor((tapTarget.r*tapTarget.r)/(maxR*maxR)*1.1));
+    for (let i=0;i<tCount;i++){
+      const ang = rand(0,Math.PI*2);
+      const rad = Math.sqrt(Math.random())*tapTarget.r;
+      const x = cx + tapTarget.x + Math.cos(ang)*rad;
+      const y = cy + tapTarget.y + Math.sin(ang)*rad;
+      const r = rand(maxR*0.5, maxR);
+      ctx.beginPath();
+      ctx.fillStyle = choice(pal.contrastB);
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#1f2742";
+  ctx.stroke();
+}
+
+/* ---------- test oluşturma ---------- */
+function buildTest(){
+  const types = [];
+  for (let i=0;i<NUM_STAGES;i++) types.push("num");
+  for (let i=0;i<TAP_STAGES;i++) types.push("tap");
+  shuffle(types);
+
+  const stages = [];
+  for (let i=0;i<TEST_LENGTH;i++){
+    const type = types[i];
+    let paletteKey;
+    if (type === "num"){
+      paletteKey = choice(["redGreen","blueYellow","mono","redGreen","blueYellow"]);
+    } else {
+      paletteKey = choice(["redGreen","blueYellow","mono","normal"]);
+    }
+    const answer = type === "num" ? randInt(1,99) : null;
+    stages.push({ type, paletteKey, answer, targetDot:null, correct:null });
+  }
+  state.stages = stages;
+  state.index = 0;
+  state.results = [];
+  state.current = null;
+}
+
+/* ---------- aşama yükleme ---------- */
+function loadStage(idx){
+  state.index = idx;
+  const st = state.stages[idx];
+  state.current = st;
+
+  $("stageLabel").textContent = (idx+1) + " / " + TEST_LENGTH;
+  $("progressBar").style.width = ((idx/TEST_LENGTH)*100) + "%";
+  $("typeLabel").textContent = st.type === "num" ? "🔢 Sayı" : "👆 Dokunma";
+
+  if (st.type === "num"){
+    $("tapPanel").classList.add("hidden");
+    $("numPanel").classList.remove("hidden");
+    $("numInput").value = "";
+    $("numInput").style.borderColor = "#2a3450";
+    $("btnSubmitNum").disabled = false;
+  } else {
+    $("numPanel").classList.add("hidden");
+    $("tapPanel").classList.remove("hidden");
+    $("tapHint").textContent = "Farklı renkteki alana dokunun";
+  }
+
+  const S = fitCanvas();
+  const R = S/2;
+
+  if (st.type === "num"){
+    plateState = { type:"num", paletteKey: st.paletteKey, answer: st.answer };
+    figureMaskFn = buildFigureMask(st.answer, S);
+    st.targetDot = null;
+  } else {
+    const ang = rand(0, Math.PI*2);
+    const dist = rand(R*0.25, R*0.55);
+    const tr = rand(R*0.18, R*0.28);
+    st.targetDot = { x: Math.cos(ang)*dist, y: Math.sin(ang)*dist, r: tr };
+    plateState = { type:"tap", paletteKey: st.paletteKey, targetDot: st.targetDot };
+    figureMaskFn = null;
+  }
+
+  drawPlate();
+}
+
+/* ---------- flash geri bildirim ---------- */
+function flash(ok){
+  const el = $("flash");
+  el.className = ok ? "ok show" : "bad show";
+  setTimeout(()=>{ el.className = ""; }, 350);
+}
+
+/* ---------- aşama bitir ---------- */
+function finishStage(correct){
+  const st = state.current;
+  if (!st || st.correct !== null) return;
+  st.correct = !!correct;
+  state.results.push({ type: st.type, paletteKey: st.paletteKey, correct: st.correct });
+
+  flash(st.correct);
+
+  const done = state.index + 1;
+  $("progressBar").style.width = ((done/TEST_LENGTH)*100) + "%";
+
+  setTimeout(()=>{
+    if (done < TEST_LENGTH){
+      loadStage(done);
+    } else {
+      showResults();
+    }
+  }, 450);
+}
+
+/* ---------- kullanıcı etkileşimleri ---------- */
+canvas.addEventListener("pointerdown", (e)=>{
+  const st = state.current;
+  if (!st || st.type !== "tap") return;
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+  const S = Math.min(rect.width, rect.height);
+  const x = (e.clientX - rect.left) * (S / rect.width);
+  const y = (e.clientY - rect.top)  * (S / rect.height);
+  const cx = S/2, cy = S/2;
+  const dx = x - cx, dy = y - cy;
+  if (Math.hypot(dx, dy) > S/2) return;
+
+  const t = st.targetDot;
+  const hit = Math.hypot(dx - t.x, dy - t.y) <= t.r * 0.95;
+  finishStage(hit);
+}, { passive:false });
+
+function submitNumber(){
+  const st = state.current;
+  if (!st || st.type !== "num") return;
+  const val = parseInt($("numInput").value, 10);
+  if (isNaN(val) || val < 1 || val > 99){
+    $("numInput").style.borderColor = "#ff5b6e";
+    return;
+  }
+  finishStage(val === st.answer);
+}
+
+/* ---------- sonuç ---------- */
+function showResults(){
+  showScreen("result");
+
+  const res = state.results;
+  const total = res.length;
+  const correctCount = res.filter(r=>r.correct).length;
+  const overall = total ? 1 - (correctCount/total) : 0;
+
+  const byPal = {};
+  for (const k of Object.keys(PALETTES)) byPal[k] = { total:0, wrong:0 };
+  for (const r of res){
+    if (!byPal[r.paletteKey]) byPal[r.paletteKey] = { total:0, wrong:0 };
+    byPal[r.paletteKey].total++;
+    if (!r.correct) byPal[r.paletteKey].wrong++;
+  }
+
+  const sRG = byPal.redGreen.total ? byPal.redGreen.wrong/byPal.redGreen.total : 0;
+  const sBY = byPal.blueYellow.total ? byPal.blueYellow.wrong/byPal.blueYellow.total : 0;
+  const sMO = byPal.mono.total ? byPal.mono.wrong/byPal.mono.total : 0;
+
+  const suspects = [];
+  if (sRG >= 0.5) suspects.push("Kırmızı-Yeşil Körlüğü (Protan/Deutan)");
+  if (sBY >= 0.5) suspects.push("Mavi-Sarı Körlüğü (Tritan)");
+  if (sMO >= 0.5) suspects.push("Tam Renk Körlüğü (Achromatopsia)");
+
+  let verdict, vClass;
+  if (suspects.length === 0 && overall < 0.3){
+    verdict = "Normal görme aralığında görünüyorsunuz. Belirgin bir renk ayrım sorunu saptanmadı.";
+    vClass = "ok";
+  } else if (suspects.length > 0){
+    verdict = "Şüpheli durum: " + suspects.join(", ") + ". Klinik değerlendirme önerilir.";
+    vClass = "bad";
+  } else {
+    verdict = "Sınırda sonuç. Bazı paletlerde hata oranı yüksek.";
+    vClass = "warn";
+  }
+
+  $("resultSummary").textContent = correctCount + " / " + total +
+    " doğru · Genel hata: " + (overall*100).toFixed(0) + "%";
+
+  const bars = [];
+  const palMeta = [
+    {key:"redGreen",   label:"Kırmızı-Yeşil paleti"},
+    {key:"blueYellow", label:"Mavi-Sarı paleti"},
+    {key:"mono",       label:"Tam Renk paleti"},
+    {key:"normal",     label:"Karışık kontrol"}
+  ];
+  for (const p of palMeta){
+    const s = byPal[p.key] || {total:0,wrong:0};
+    const rate = s.total ? s.wrong/s.total : 0;
+    const pct = (rate*100).toFixed(0);
+    const fc = rate >= 0.5 ? "fill-bad" : rate >= 0.25 ? "fill-warn" : "fill-ok";
+    bars.push(
+      '<div class="metric">' +
+        '<div class="metric-head"><span>' + p.label + '</span>' +
+        '<span>' + s.wrong + '/' + s.total + ' hata · ' + pct + '%</span></div>' +
+        '<div class="metric-bar"><div class="metric-fill ' + fc + '" data-w="' + pct + '%"></div></div>' +
+      '</div>'
+    );
+  }
+
+  $("resultBody").innerHTML =
+    '<div class="result-card">' + bars.join("") + '</div>' +
+    '<div class="verdict ' + vClass + '">' + verdict + '</div>';
+
+  requestAnimationFrame(()=>{
+    document.querySelectorAll(".metric-fill").forEach(el=>{
+      el.style.width = el.dataset.w;
+    });
+  });
+}
+
+/* ---------- olay bağlama ---------- */
+$("btnStart").addEventListener("click", ()=>{
+  buildTest();
+  showScreen("test");
+  requestAnimationFrame(()=>{
+    loadStage(0);
+  });
+});
+
+$("btnSubmitNum").addEventListener("click", submitNumber);
+$("numInput").addEventListener("keydown", e => { if (e.key === "Enter") submitNumber(); });
+
+$("btnRestart").addEventListener("click", ()=>{
+  plateState = null;
+  figureMaskFn = null;
+  state.current = null;
+  showScreen("start");
+});
+
+/* ---------- resize ---------- */
+let rt = null;
+window.addEventListener("resize", ()=>{
+  clearTimeout(rt);
+  rt = setTimeout(()=>{
+    if (screens.test.classList.contains("active")) drawPlate();
+  }, 150);
+});
+
+/* ---------- pinch-zoom engelle ---------- */
+document.addEventListener("gesturestart", e => e.preventDefault(), {passive:false});
+document.addEventListener("dblclick", e => e.preventDefault(), {passive:false});
+
+/* ---------- Service Worker ---------- */
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
